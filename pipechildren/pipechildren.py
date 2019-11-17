@@ -19,7 +19,7 @@ class PopenArgs:
     '''
     The possible arguments are Popen arguments except for
     stdin/stdout and name. name is set to popen object.
-    This parameter is used to call pipecmds.Popen.
+    This parameter is used to call pipechildren.Popen.
     stdin and stdout are ignored when piped to another process.
     '''
     def __init__(self, args, bufsize=-1, executable=None, stderr=None, preexec_fn=None, close_fds=True, shell=False, cwd=None, env=None, startupinfo=None, creationflags=0, restore_signals=True, start_new_session=False, pass_fds=(), name=None):
@@ -60,9 +60,9 @@ class Popen:
     Parameters
     ----------
     popen_args_list
-        The list of pipecmds.PopenArgs
+        The list of pipechildren.PopenArgs
     stderr
-        Specify One of pipecmds.DEVNULL, pipecmds.STDOUT, or file-like object
+        Specify One of pipechildren.DEVNULL, pipechildren.STDOUT, or file-like object
     '''
     def __init__(self, popen_args_list, stdin=None, stdout=None, stderr=None, universal_newlines=None, encoding=None, errors=None, text=None):
         self.text = universal_newlines or encoding or errors or text
@@ -221,7 +221,7 @@ class Popen:
         return self
 
     def __exit__(self):
-        # To support "with pipecmds.Popen() as p:"
+        # To support "with pipechildren.Popen() as p:"
         self.wait()
 
     def poll(self):
@@ -274,7 +274,7 @@ class Popen:
 
         returncodes = self.poll()
         if returncodes is None:
-            raise subprocess.TimeoutExpired(cmd="pipecmds", timeout=timeout)
+            raise subprocess.TimeoutExpired(cmd="pipechildren", timeout=timeout)
         logging.debug("wait finished")
         return returncodes
 
@@ -391,7 +391,7 @@ class Popen:
         stdout_data
             stdout of down most process
         stderr_data
-            stderr of whole process if pipecmds.PIPE is specified.
+            stderr of whole process if pipechildren.PIPE is specified.
         The data will be strings if streams were opened in text mode; otherwise, bytes.
         '''
         logging.debug("communicate called")
@@ -438,7 +438,7 @@ class Popen:
                 timedout = self._workers["stderr_worker"].is_alive()
 
         if timedout:
-            raise subprocess.TimeoutExpired(cmd="pipecmds", timeout=timeout)
+            raise subprocess.TimeoutExpired(cmd="pipechildren", timeout=timeout)
 
         # Guard all workers from running just in case.
         self._stop_workers = True

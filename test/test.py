@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 import unittest
-import pipecmds
+import pipechildren
 import shlex
 import logging
 import inspect
 
-class PipecmdsTest(unittest.TestCase):
+class PipechildrenTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         logging.basicConfig(level=getattr(logging, 'DEBUG', None))
@@ -24,12 +24,12 @@ class PipecmdsTest(unittest.TestCase):
         logging.info("")
 
     def get_popen_args_list(self, cmdlist):
-        return [pipecmds.PopenArgs(shlex.split(cmd)) for cmd in cmdlist]
+        return [pipechildren.PopenArgs(shlex.split(cmd)) for cmd in cmdlist]
 
     def run_popen_basic(self, cmdlist, expected_out):
         popen_args_list = self.get_popen_args_list(cmdlist)
         logging.info([popen_args.args for popen_args in popen_args_list])
-        self.p = pipecmds.Popen(popen_args_list, text=True, stdout=pipecmds.PIPE)
+        self.p = pipechildren.Popen(popen_args_list, text=True, stdout=pipechildren.PIPE)
         outs, errs = self.p.communicate()
         outs_line = outs.split('\n')
         if outs_line[-1] == '':
@@ -108,7 +108,7 @@ class PipecmdsTest(unittest.TestCase):
         cmdlist = ["cat /bin/cat", "head -c 10", "hexdump"]
         expected_out = b"0000000 cf fa ed fe 07 00 00 01 03 00                  \n000000a\n"
         popen_args_list = self.get_popen_args_list(cmdlist)
-        self.p = pipecmds.Popen(popen_args_list, stdout=pipecmds.PIPE)
+        self.p = pipechildren.Popen(popen_args_list, stdout=pipechildren.PIPE)
         outs, errs = self.p.communicate()
         self.assertEqual(outs, expected_out)
 
@@ -119,7 +119,7 @@ class PipecmdsTest(unittest.TestCase):
         cmdlist = ["head -2", "tail -1"]
         expected_out = "2\n"
         popen_args_list = self.get_popen_args_list(cmdlist)
-        self.p = pipecmds.Popen(popen_args_list, text=True, stdout=pipecmds.PIPE, stdin=pipecmds.PIPE)
+        self.p = pipechildren.Popen(popen_args_list, text=True, stdout=pipechildren.PIPE, stdin=pipechildren.PIPE)
         outs, errs = self.p.communicate(input=input)
         self.assertEqual(outs, expected_out)
 
@@ -128,7 +128,7 @@ class PipecmdsTest(unittest.TestCase):
         cmdlist = ["sleep 10"]
 
         popen_args_list = self.get_popen_args_list(cmdlist)
-        self.p = pipecmds.Popen(popen_args_list, text=True, stdout=pipecmds.PIPE, stdin=pipecmds.PIPE)
+        self.p = pipechildren.Popen(popen_args_list, text=True, stdout=pipechildren.PIPE, stdin=pipechildren.PIPE)
         import subprocess
         with self.assertRaises(subprocess.TimeoutExpired):
             self.p.wait(timeout=0.1)
@@ -138,8 +138,8 @@ class PipecmdsTest(unittest.TestCase):
         cmdlist = ["ls hogehogehoge"]
         expected_out = "ls: hogehogehoge: No such file or directory\n"
         popen_args_list = self.get_popen_args_list(cmdlist)
-        self.p = pipecmds.Popen(popen_args_list, stdout=pipecmds.PIPE,
-                                stderr=pipecmds.PIPE, text=True)
+        self.p = pipechildren.Popen(popen_args_list, stdout=pipechildren.PIPE,
+                                stderr=pipechildren.PIPE, text=True)
         outs, errs = self.p.communicate()
         self.assertEqual(outs, "")
         self.assertEqual(errs, expected_out)
@@ -152,8 +152,8 @@ class PipecmdsTest(unittest.TestCase):
                         "ls: higehigehige: No such file or directory",
                         ""]
         popen_args_list = self.get_popen_args_list(cmdlist)
-        self.p = pipecmds.Popen(popen_args_list, stdout=pipecmds.PIPE,
-                                stderr=pipecmds.PIPE, text=True)
+        self.p = pipechildren.Popen(popen_args_list, stdout=pipechildren.PIPE,
+                                stderr=pipechildren.PIPE, text=True)
         outs, errs = self.p.communicate()
         self.assertEqual(outs, "")
         self.assertEqual(errs.split("\n"), expected_out)
@@ -162,7 +162,7 @@ class PipecmdsTest(unittest.TestCase):
         logging.info(inspect.stack()[0][3])
         cmdlist = ["sleep 10", "sleep 10", "sleep 10"]
         popen_args_list = self.get_popen_args_list(cmdlist)
-        self.p = pipecmds.Popen(popen_args_list)
+        self.p = pipechildren.Popen(popen_args_list)
         self.p.kill()
         self.assertIsNotNone(self.p.wait(timeout=0))
         self.assertEqual(self.p.returncodes, [-9,-9,-9])
@@ -172,8 +172,8 @@ class PipecmdsTest(unittest.TestCase):
         cmdlist = ["dd if=/dev/urandom bs=1048576 count=1",
                    "hexdump"]
         popen_args_list = self.get_popen_args_list(cmdlist)
-        self.p = pipecmds.Popen(popen_args_list,
-                                stdout=pipecmds.PIPE,
-                                stderr=pipecmds.PIPE)
+        self.p = pipechildren.Popen(popen_args_list,
+                                stdout=pipechildren.PIPE,
+                                stderr=pipechildren.PIPE)
         outs, errs = self.p.communicate()
         self.assertEqual(len(outs), 3670024)
