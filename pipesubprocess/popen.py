@@ -111,63 +111,97 @@ class Popen:
             if stderr:
                 self._start_stderr_drainer()
 
+    @staticmethod
+    def _work_text_drainer(_self, name, reader, out_func):
+        '''
+        Not that It's static method.
+        Called like self._work_text_drainer(self)
+
+        out_func() gets binary data as 1st argument and needs to return
+        False if writer is no longer avaialb.e
+        '''
+        logging.debug(f"_work_text_drainer {name} started")
+        while (not _self._stop_workers):
+            line = reader.readline()
+            if not line:
+                break
+            logging.debug(f"{name} -> {line}")
+            if not out_func(line):
+                break
+        logging.debug(f"_work_text_drainer {name} finished.")
+
+
+    @staticmethod
+    def _work_binary_drainer(_self, name, reader, out_func):
+        '''
+        Not that It's static method.
+        Called like self._work_binary_drainer(self)
+
+        out_func() gets binary data as 1st argument and need to return
+        False if writer is no longer avaialb.e
+        '''
+        logging.debug(f"_work_binary_drainer {name} started")
+        while (not _self._stop_workers):
+            data = reader.read(4096)
+            if not data:
+                break
+            logging.debug(f"{name} -> {data}")
+            if not out_func(data):
+                logging.debug(f"{name} -> EOF")
+                break
+        logging.debug(f"_work_binary_drainer {name} finished.")
+
+
     def _start_stderr_drainer(self):
         '''
         drain stderr from all sub-processes and gather to one piped stderr
         '''
-        def work_drain_stderr(name, stderr, stderr_write_end, text):
-            logging.debug(f"stderr_drainer {name} started")
-            if text:
-                while (not self._stop_workers and
-                       not stderr.closed and
-                       not stderr_write_end.closed):
-                    line = stderr.readline()
-                    if not line:
-                        break
-                    logging.debug(f"stderr-> {line}")
-                    stderr_write_end.write(line)
-            else:
-                while (not self._stop_workers and
-                       not stderr.closed and
-                       not stderr_write_end.closed):
-                    data = stderr.read(4096)
-                    if not data:
-                        break
-                    logging.debug(f"stderr-> {data}")
-                    stderr_write_end.write(data)
-            logging.debug(f"stderr_drainer {name} finished")
-
-        def work_close_stderr_write_end():
-            logging.debug(f"work_close_stderr_write_end started")
-            drainers = self._workers["stderr_drainer"]
-            while not self._stop_workers:
-                alive = False
-                for t in drainers:
-                    if t.is_alive():
-                        alive = True
-                        break
-                if not alive:
-                    break
-            logging.debug(f"work_close_stderr_write_end finished")
-            self.stderr_write_end.close()
 
         stderr_drainer = []
 
+        def write_to_stderr_write_end(data):
+            if self.stderr_write_end.closed:
+                return False
+            else:
+                self.stderr_write_end.write(data)
+                return True
+
         for p in self.processes:
             name=f"{p.name}_stderr_drainer"
-            t = threading.Thread(
-                target=lambda: work_drain_stderr(name,
-                                                 p.stderr,
-                                                 self.stderr_write_end,
-                                                 self.text),
-                name=name)
+
+            if self.text:
+                drainer = lambda: self._work_text_drainer(self,
+                                                          name,
+                                                          p.stderr,
+                                                          write_to_stderr_write_end)
+            else:
+                drainer = lambda: self._work_binary_drainer(self,
+                                                            name,
+                                                            p.stderr,
+                                                            write_to_stderr_write_end)
+
+            t = threading.Thread(name=name, target=drainer)
             t.start()
             stderr_drainer.append(t)
 
         self._workers["stderr_drainer"] = stderr_drainer
 
         if self.stderr:
-            # We need closer otherwise reader cannot finish reading.
+            # We need close worker otherwise reader cannot finish reading.
+            def work_close_stderr_write_end():
+                logging.debug(f"work_close_stderr_write_end started")
+                drainers = self._workers["stderr_drainer"]
+                while not self._stop_workers:
+                    alive = False
+                    for t in drainers:
+                        if t.is_alive():
+                            alive = True
+                            break
+                    if not alive:
+                        break
+                logging.debug(f"work_close_stderr_write_end finished")
+                self.stderr_write_end.close()
+
             close_stderr_write_end_worker = threading.Thread(
                 target=work_close_stderr_write_end,
                 name=name)
@@ -268,50 +302,13 @@ class Popen:
             self.stdin.close()
             logging.debug("stdin_worker finished")
 
-        def work_stdout():
-            logging.debug("stdout_worker started")
-            if self.text:
-                self.outs = ""
-                while not self._stop_workers:
-                    line = self.stdout.readline()
-                    if not line:
-                        logging.debug(f"stdout-> EOF")
-                        break
-                    logging.debug(f"stdout-> {line}")
-                    self.outs += line
-            else:
-                self.outs = b""
-                while not self._stop_workers:
-                    data = self.stdout.read(4096)
-                    if not data:
-                        logging.debug(f"stdout-> EOF")
-                        break
-                    logging.debug(f"stdout-> {data}")
-                    self.outs += data
-            logging.debug("stdout_worker finished")
+        def add_to_outs(data):
+            self.outs += data
+            return True
 
-        def work_stderr():
-            logging.debug("stderr_worker started")
-            if self.text:
-                self.errs = ""
-                while not self._stop_workers:
-                    line = self.stderr.readline()
-                    if not line:
-                        logging.debug(f"stderr-> EOF")
-                        break
-                    logging.debug(f"stderr-> {line}")
-                    self.errs += line
-            else:
-                self.errs = b""
-
-                while not self._stop_workers:
-                    data = self.stderr.read(4096)
-                    if not data:
-                        logging.debug(f"stderr-> EOF")
-                        break
-                    logging.debug(f"stderr-> {data}")
-                    self.errs += data
-            logging.debug("stderr_worker finished")
+        def add_to_errs(data):
+            self.errs += data
+            return True
 
         if input and self.stdin:
             stdin_worker = threading.Thread(
@@ -323,15 +320,39 @@ class Popen:
             self.stdin.close()
 
         if self.stdout:
+            if self.text:
+                self.outs = ''
+                drainer = lambda: self._work_text_drainer(self,
+                                                          'stdout_drainer',
+                                                          self.stdout,
+                                                          add_to_outs)
+            else:
+                self.outs = b''
+                drainer = lambda: self._work_binary_drainer(self,
+                                                          'stdout_drainer',
+                                                          self.stdout,
+                                                          add_to_outs)
             stdout_worker = threading.Thread(
-                target=work_stdout,
+                target=drainer,
                 name="stdout_worker")
             stdout_worker.start()
             self._workers["stdout_worker"] = stdout_worker
 
         if self.stderr:
+            if self.text:
+                self.errs = ''
+                drainer = lambda: self._work_text_drainer(self,
+                                                          'stderr_drainer',
+                                                          self.stderr,
+                                                          add_to_errs)
+            else:
+                self.errs = b''
+                drainer = lambda: self._work_binary_drainer(self,
+                                                          'stderr_drainer',
+                                                          self.stderr,
+                                                          add_to_errs)
             stderr_worker = threading.Thread(
-                target=work_stderr,
+                target=drainer,
                 name="stderr_worker")
             stderr_worker.start()
             self._workers["stderr_worker"] = stderr_worker
