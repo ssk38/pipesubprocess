@@ -3,53 +3,14 @@
 
 from datetime import datetime, timedelta
 
+import copy
 import logging
 import os
 import subprocess
 import threading
 import time
 
-
-'''These are the aliases of subprocess'''
-PIPE = -1
-STDOUT = -2
-DEVNULL = -3
-
-class PopenArgs:
-    '''
-    The possible arguments are Popen arguments except for
-    stdin/stdout and name. name is set to popen object.
-    This parameter is used to call pipechildren.Popen.
-    stdin and stdout are ignored when piped to another process.
-    '''
-    def __init__(self, args, bufsize=-1, executable=None, stderr=None, preexec_fn=None, close_fds=True, shell=False, cwd=None, env=None, startupinfo=None, creationflags=0, restore_signals=True, start_new_session=False, pass_fds=(), name=None):
-        self.name = name
-        self.args = args
-        self.bufsize = bufsize
-        self.executable = executable
-        self.stderr = stderr
-        self.preexec_fn = preexec_fn
-        self.close_fds = close_fds
-        self.shell = shell
-        self.cwd = cwd
-        self.env = env
-        self.startupinfo = startupinfo
-        self.creationflags = creationflags
-        self.restore_signals = restore_signals
-        self.start_new_session = start_new_session
-        self.pass_fds = pass_fds
-        if self.stderr == subprocess.PIPE:
-            raise NotImplementedError("PIPE cannot be set for stderr.")
-
-    def __repr__():
-        return f"<PipeArgs str(self.__dict__)>"
-
-    def __str__():
-        from pprint import pformat
-        return pformat(self.__dict__, indent=4)
-
-
-
+from .constants import PIPE, STDOUT, DEVNULL
 
 class Popen:
     '''
@@ -94,28 +55,24 @@ class Popen:
         # previous stdout goes into current stdin
         prev_out = stdin
         for i in range(len(self.popen_args_list)):
-            popen_args = self.popen_args_list[i]
+            pa = self.popen_args_list[i]
             if i == len(self.popen_args_list) - 1:
                 # Last
                 _stdout = stdout
             else:
                 _stdout = subprocess.PIPE
-            args_dict = popen_args.__dict__
 
-            _stderr = args_dict['stderr'] if args_dict['stderr'] else stderr
-            del args_dict['stderr']
-
-            name = args_dict['name'] if args_dict['name'] else args_dict['args'][0]
-            del args_dict['name']
+            _stderr = pa.stderr if pa.stderr else stderr
 
             p = subprocess.Popen(stdout=_stdout,
                                  stdin=prev_out,
                                  stderr=_stderr,
                                  text=self.text,
                                  encoding=self.encoding,
-                                 **args_dict)
-            setattr(p, "name", name)
-            logging.info(f"Popening({name} {args_dict})")
+                                 **pa.popen_kwargs)
+
+            setattr(p, "name", pa.name)
+            logging.info(f"Popening({pa.fullname})")
             if i > 0:
                 """
                 piped stdout/stdin is connected between subprocesses and used in

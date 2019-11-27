@@ -1,2 +1,4 @@
-# move pipesubprocess.pipesubprocess.* to pipesubprocess.*
-from .pipesubprocess import *
+# move pipesubprocess.xxx.yyy to pipesubprocess.yyy
+from .constants import DEVNULL, PIPE, STDOUT
+from .popen import Popen
+from .popen_args import PopenArgs
