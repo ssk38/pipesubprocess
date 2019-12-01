@@ -25,7 +25,7 @@ class Popen:
     stderr
         Specify One of pipechildren.DEVNULL, pipechildren.STDOUT, or file-like object
     '''
-    def __init__(self, popen_args_list, stdin=None, stdout=None, stderr=None, universal_newlines=None, encoding=None, errors=None, text=None):
+    def __init__(self, popen_args_list, stdin=None, stdout=None, stderr=None, universal_newlines=None, encoding=None, errors=None, text=None, _debug_communicate_io=False):
         self.text = universal_newlines or encoding or errors or text
         self.encoding = encoding
         self.popen_args_list = popen_args_list
@@ -36,6 +36,9 @@ class Popen:
         self.stderr_write_end = None
         self.outs = None
         self.errs = None
+
+        self._debug_communicate_io = _debug_communicate_io
+
         self._communicate_called = False
         self._workers = {
             "stderr_drainer": None,
@@ -128,7 +131,8 @@ class Popen:
             line = reader.readline()
             if not line:
                 break
-            logging.debug(f"{name} -> {line}")
+            if _self._debug_communicate_io:
+                logging.debug(f"{name} -> {line}")
             if not data_writer(line):
                 break
         logging.debug(f"_work_text_drainer {name} finished.")
@@ -151,7 +155,8 @@ class Popen:
             data = reader.read(4096)
             if not data:
                 break
-            logging.debug(f"{name} -> {data}")
+            if _self._debug_communicate_io:
+                logging.debug(f"{name} -> {data}")
             if not data_writer(data):
                 logging.debug(f"{name} -> EOF")
                 break
@@ -306,10 +311,12 @@ class Popen:
             end = start + step
             while not self._stop_workers and not self.stdin.closed:
                 if len(input) > end:
-                    logging.debug(f"->stdin {input[start:end]}")
+                    if self._debug_communicate_io:
+                        logging.debug(f"->stdin {input[start:end]}")
                     self.stdin.write(input[start:end])
                 else:
-                    logging.debug(f"->stdin {input[start:]}")
+                    if self._debug_communicate_io:
+                        logging.debug(f"->stdin {input[start:]}")
                     self.stdin.write(input[start:])
                     break
                 start += step
