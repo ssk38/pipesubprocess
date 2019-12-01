@@ -112,12 +112,15 @@ class Popen:
                 self._start_stderr_drainer()
 
     @staticmethod
-    def _work_text_drainer(_self, name, reader, out_func):
+    def _work_text_drainer(_self, name, reader, data_writer):
         '''
-        Not that It's static method.
+        Generic thread reader to read data from <reader> and write
+        data to callback data_writer(data).
+
+        NOTE: It is STATIC method.
         Called like self._work_text_drainer(self)
 
-        out_func() gets binary data as 1st argument and needs to return
+        data_writer() gets binary data as 1st argument and needs to return
         False if writer is no longer avaialb.e
         '''
         logging.debug(f"_work_text_drainer {name} started")
@@ -126,18 +129,21 @@ class Popen:
             if not line:
                 break
             logging.debug(f"{name} -> {line}")
-            if not out_func(line):
+            if not data_writer(line):
                 break
         logging.debug(f"_work_text_drainer {name} finished.")
 
 
     @staticmethod
-    def _work_binary_drainer(_self, name, reader, out_func):
+    def _work_binary_drainer(_self, name, reader, data_writer):
         '''
-        Not that It's static method.
+        Generic thread reader to read data from <reader> and write
+        data to callback data_writer(data).
+
+        NOTE: It is STATIC method.
         Called like self._work_binary_drainer(self)
 
-        out_func() gets binary data as 1st argument and need to return
+        data_writer() gets binary data as 1st argument and need to return
         False if writer is no longer avaialb.e
         '''
         logging.debug(f"_work_binary_drainer {name} started")
@@ -146,7 +152,7 @@ class Popen:
             if not data:
                 break
             logging.debug(f"{name} -> {data}")
-            if not out_func(data):
+            if not data_writer(data):
                 logging.debug(f"{name} -> EOF")
                 break
         logging.debug(f"_work_binary_drainer {name} finished.")
@@ -159,7 +165,7 @@ class Popen:
 
         stderr_drainer = []
 
-        def write_to_stderr_write_end(data):
+        def stderr_write_end_writer(data):
             if self.stderr_write_end.closed:
                 return False
             else:
@@ -173,12 +179,12 @@ class Popen:
                 drainer = lambda: self._work_text_drainer(self,
                                                           name,
                                                           p.stderr,
-                                                          write_to_stderr_write_end)
+                                                          stderr_write_end_writer)
             else:
                 drainer = lambda: self._work_binary_drainer(self,
                                                             name,
                                                             p.stderr,
-                                                            write_to_stderr_write_end)
+                                                            stderr_write_end_writer)
 
             t = threading.Thread(name=name, target=drainer)
             t.start()
@@ -282,9 +288,18 @@ class Popen:
         return datetime.now() + timedelta(seconds=timeout)
 
     def _start_communicate_pipes(self, input=input):
+        '''
+        Start threads below. It's called only once when communicate is called first time.
+        - Thread1: write <input> to stdin if stdin is PIPE and <input> is given.
+        - Thread2: read stdout to outs if stdout is PIPE
+        - Thread3: read stderr to errs if stderr is PIPE
+        '''
         logging.debug("_start_communicate_pipes called")
 
         def work_stdin(input=None):
+            '''
+            Thread worker to write <input> to stdin
+            '''
             logging.debug("stdin_worker started")
             start = 0
             step = 4096
@@ -302,11 +317,17 @@ class Popen:
             self.stdin.close()
             logging.debug("stdin_worker finished")
 
-        def add_to_outs(data):
+        def add_to_outs_writer(data):
+            '''
+            Writer used by stdout drainer thread
+            '''
             self.outs += data
             return True
 
-        def add_to_errs(data):
+        def add_to_errs_writer(data):
+            '''
+            Writer used by stderr drainer thread
+            '''
             self.errs += data
             return True
 
@@ -325,13 +346,13 @@ class Popen:
                 drainer = lambda: self._work_text_drainer(self,
                                                           'stdout_drainer',
                                                           self.stdout,
-                                                          add_to_outs)
+                                                          add_to_outs_writer)
             else:
                 self.outs = b''
                 drainer = lambda: self._work_binary_drainer(self,
-                                                          'stdout_drainer',
-                                                          self.stdout,
-                                                          add_to_outs)
+                                                            'stdout_drainer',
+                                                            self.stdout,
+                                                            add_to_outs_writer)
             stdout_worker = threading.Thread(
                 target=drainer,
                 name="stdout_worker")
@@ -344,13 +365,13 @@ class Popen:
                 drainer = lambda: self._work_text_drainer(self,
                                                           'stderr_drainer',
                                                           self.stderr,
-                                                          add_to_errs)
+                                                          add_to_errs_writer)
             else:
                 self.errs = b''
                 drainer = lambda: self._work_binary_drainer(self,
-                                                          'stderr_drainer',
-                                                          self.stderr,
-                                                          add_to_errs)
+                                                            'stderr_drainer',
+                                                            self.stderr,
+                                                            add_to_errs_writer)
             stderr_worker = threading.Thread(
                 target=drainer,
                 name="stderr_worker")
