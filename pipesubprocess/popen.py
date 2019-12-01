@@ -12,6 +12,8 @@ import time
 
 from .constants import PIPE, STDOUT, DEVNULL
 
+logger = logging.getLogger(__name__)
+
 class Popen:
     '''
     It wraps multiple subprocess.popen and provides I/F like subprocess.Popen.
@@ -75,7 +77,7 @@ class Popen:
                                  **pa.popen_kwargs)
 
             setattr(p, "name", pa.name)
-            logging.info(f"Popening({pa.fullname})")
+            logger.info(f"Popening({pa.fullname})")
             if i > 0:
                 """
                 piped stdout/stdin is connected between subprocesses and used in
@@ -100,7 +102,7 @@ class Popen:
             self.stdout = None
 
         if stderr is PIPE:
-            logging.debug("stderr is PIPE")
+            logger.debug("stderr is PIPE")
             if len(self.processes) == 1:
                 self.stderr = self.processes[0].stderr
             else:
@@ -126,16 +128,16 @@ class Popen:
         data_writer() gets binary data as 1st argument and needs to return
         False if writer is no longer avaialb.e
         '''
-        logging.debug(f"_work_text_drainer {name} started")
+        logger.debug(f"_work_text_drainer {name} started")
         while (not _self._stop_workers):
             line = reader.readline()
             if not line:
                 break
             if _self._debug_communicate_io:
-                logging.debug(f"{name} -> {line}")
+                logger.debug(f"{name} -> {line}")
             if not data_writer(line):
                 break
-        logging.debug(f"_work_text_drainer {name} finished.")
+        logger.debug(f"_work_text_drainer {name} finished.")
 
 
     @staticmethod
@@ -150,17 +152,17 @@ class Popen:
         data_writer() gets binary data as 1st argument and need to return
         False if writer is no longer avaialb.e
         '''
-        logging.debug(f"_work_binary_drainer {name} started")
+        logger.debug(f"_work_binary_drainer {name} started")
         while (not _self._stop_workers):
             data = reader.read(4096)
             if not data:
                 break
             if _self._debug_communicate_io:
-                logging.debug(f"{name} -> {data}")
+                logger.debug(f"{name} -> {data}")
             if not data_writer(data):
-                logging.debug(f"{name} -> EOF")
+                logger.debug(f"{name} -> EOF")
                 break
-        logging.debug(f"_work_binary_drainer {name} finished.")
+        logger.debug(f"_work_binary_drainer {name} finished.")
 
 
     def _start_stderr_drainer(self):
@@ -200,7 +202,7 @@ class Popen:
         if self.stderr:
             # We need close worker otherwise reader cannot finish reading.
             def work_close_stderr_write_end():
-                logging.debug(f"work_close_stderr_write_end started")
+                logger.debug(f"work_close_stderr_write_end started")
                 drainers = self._workers["stderr_drainer"]
                 while not self._stop_workers:
                     alive = False
@@ -210,7 +212,7 @@ class Popen:
                             break
                     if not alive:
                         break
-                logging.debug(f"work_close_stderr_write_end finished")
+                logger.debug(f"work_close_stderr_write_end finished")
                 self.stderr_write_end.close()
 
             close_stderr_write_end_worker = threading.Thread(
@@ -253,11 +255,11 @@ class Popen:
         returncodes
             list of returncodes of subprocesses.
         '''
-        logging.debug("wait started")
+        logger.debug("wait started")
         def work_wait(name, p, timeout):
-            logging.debug(f"waiter {name} started")
+            logger.debug(f"waiter {name} started")
             ret = p.wait(timeout=timeout)
-            logging.debug(f"waiter {name} finished")
+            logger.debug(f"waiter {name} finished")
             return ret
 
         waiter = []
@@ -277,7 +279,7 @@ class Popen:
         returncodes = self.poll()
         if returncodes is None:
             raise subprocess.TimeoutExpired(cmd="pipechildren", timeout=timeout)
-        logging.debug("wait finished")
+        logger.debug("wait finished")
         return returncodes
 
     def _time_left_sec(self, timeout_at):
@@ -299,30 +301,30 @@ class Popen:
         - Thread2: read stdout to outs if stdout is PIPE
         - Thread3: read stderr to errs if stderr is PIPE
         '''
-        logging.debug("_start_communicate_pipes called")
+        logger.debug("_start_communicate_pipes called")
 
         def work_stdin(input=None):
             '''
             Thread worker to write <input> to stdin
             '''
-            logging.debug("stdin_worker started")
+            logger.debug("stdin_worker started")
             start = 0
             step = 4096
             end = start + step
             while not self._stop_workers and not self.stdin.closed:
                 if len(input) > end:
                     if self._debug_communicate_io:
-                        logging.debug(f"->stdin {input[start:end]}")
+                        logger.debug(f"->stdin {input[start:end]}")
                     self.stdin.write(input[start:end])
                 else:
                     if self._debug_communicate_io:
-                        logging.debug(f"->stdin {input[start:]}")
+                        logger.debug(f"->stdin {input[start:]}")
                     self.stdin.write(input[start:])
                     break
                 start += step
                 end += step
             self.stdin.close()
-            logging.debug("stdin_worker finished")
+            logger.debug("stdin_worker finished")
 
         def add_to_outs_writer(data):
             '''
@@ -400,7 +402,7 @@ class Popen:
             stderr of whole process if pipechildren.PIPE is specified.
         The data will be strings if streams were opened in text mode; otherwise, bytes.
         '''
-        logging.debug("communicate called")
+        logger.debug("communicate called")
         if len(self.processes) == 1:
             # In this case, just call subprocess.communicate
             self.outs, self.errs = self.processes[0].communicate(input=input, timeout=timeout)
