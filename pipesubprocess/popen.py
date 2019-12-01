@@ -11,6 +11,7 @@ import threading
 import time
 
 from .constants import PIPE, STDOUT, DEVNULL
+from .exceptions import TimeoutExpired
 
 logger = logging.getLogger(__name__)
 
@@ -262,8 +263,13 @@ class Popen:
         logger.debug("wait started")
         def work_wait(name, p, timeout):
             logger.debug(f"waiter {name} started")
-            ret = p.wait(timeout=timeout)
-            logger.debug(f"waiter {name} finished")
+            ret = None
+            try:
+                ret = p.wait(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                logger.debug(f"waiter {name} timed out.")
+            else:
+                logger.debug(f"waiter {name} finished")
             return ret
 
         waiter = []
@@ -282,7 +288,7 @@ class Popen:
 
         returncodes = self.poll()
         if returncodes is None:
-            raise subprocess.TimeoutExpired(cmd="pipechildren", timeout=timeout)
+            raise TimeoutExpired(self.popen_args_list, timeout, stdout=self.outs, stderr=self.errs)
         logger.debug("wait finished")
         return returncodes
 
@@ -450,7 +456,7 @@ class Popen:
                 timedout = self._workers["stderr_worker"].is_alive()
 
         if timedout:
-            raise subprocess.TimeoutExpired(cmd="pipechildren", timeout=timeout)
+            raise TimeoutExpired(self.popen_args_list, timeout, stdout=self.outs, stderr=self.errs)
 
         # Guard all workers from running just in case.
         self._stop_workers = True

@@ -129,8 +129,7 @@ class PipesubprocessTest(unittest.TestCase):
 
         popen_args_list = self.get_popen_args_list(cmdlist)
         self.p = pipesub.Popen(popen_args_list, text=True, stdout=pipesub.PIPE, stdin=pipesub.PIPE)
-        import subprocess
-        with self.assertRaises(subprocess.TimeoutExpired):
+        with self.assertRaises(pipesub.TimeoutExpired):
             self.p.wait(timeout=0.1)
 
     def test_011_stderr_single(self):
@@ -177,3 +176,20 @@ class PipesubprocessTest(unittest.TestCase):
                                stderr=pipesub.PIPE)
         outs, errs = self.p.communicate()
         self.assertEqual(len(outs), 3670024)
+
+    def test_015_timeout_expired_exeption(self):
+        logging.info(inspect.stack()[0][3])
+        cmdlist = ["sleep 10", "sleep 10", "sleep 10"]
+
+        popen_args_list = self.get_popen_args_list(cmdlist)
+        self.p = pipesub.Popen(popen_args_list, text=True, stdout=pipesub.PIPE, stdin=pipesub.PIPE)
+        try:
+            self.p.wait(timeout=0.1)
+        except pipesub.TimeoutExpired as e:
+            self.assertEqual(e.popen_args[0].name, 'sleep')
+            self.assertEqual(e.popen_args[1].name, 'sleep')
+            self.assertEqual(e.popen_args[2].name, 'sleep')
+            self.assertEqual(e.timeout, 0.1)
+        except:
+            raise
+
