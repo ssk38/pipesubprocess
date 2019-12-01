@@ -107,8 +107,12 @@ class Popen:
                 self.stderr = self.processes[0].stderr
             else:
                 r, w = os.pipe()
-                self.stderr = os.fdopen(r, 'r')
-                self.stderr_write_end = os.fdopen(w, 'w')
+                if self.text:
+                    self.stderr = os.fdopen(r, 'r')
+                    self.stderr_write_end = os.fdopen(w, 'w')
+                else:
+                    self.stderr = os.fdopen(r, 'rb')
+                    self.stderr_write_end = os.fdopen(w, 'wb')
                 self._start_stderr_drainer()
         else:
             self.stderr = None
