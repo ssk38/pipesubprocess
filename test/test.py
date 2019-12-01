@@ -173,7 +173,7 @@ class PipesubprocessTest(unittest.TestCase):
                    "hexdump"]
         popen_args_list = self.get_popen_args_list(cmdlist)
         self.p = pipesub.Popen(popen_args_list,
-                                stdout=pipesub.PIPE,
-                                stderr=pipesub.PIPE)
+                               stdout=pipesub.PIPE,
+                               stderr=pipesub.PIPE)
         outs, errs = self.p.communicate()
         self.assertEqual(len(outs), 3670024)
