@@ -39,6 +39,8 @@ class Popen:
         self.stderr_write_end = None
         self.outs = None
         self.errs = None
+        self.pids = []
+        self.returncodes = []
 
         self._debug_communicate_io = _debug_communicate_io
 
@@ -88,6 +90,7 @@ class Popen:
                 self.processes[-1].stdout = None
 
             self.processes.append(p)
+            self.pids.append(p.pid)
             prev_out = p.stdout
 
         #self._start_pipe_closer()
@@ -474,7 +477,27 @@ class Popen:
 
         return self.outs, self.errs
 
-    def kill(self):
-        for p in self.processes:
-            p.kill()
+    def kill(self, *args):
+        if args and isinstance(args[0], list):
+            for i in args[0]:
+                self.processes[i].kill()
+        else:
+            for p in self.processes:
+                p.kill()
+
+    def terminate(self, *args):
+        if args and isinstance(args[0], list):
+            for i in args[0]:
+                self.processes[i].terminate()
+        else:
+            for p in self.processes:
+                p.terminate()
+
+    def send_signal(self, signal, *args):
+        if args and isinstance(args[0], list):
+            for i in args[0]:
+                self.processes[i].terminate()
+        else:
+            for p in self.processes:
+                p.terminate()
 
