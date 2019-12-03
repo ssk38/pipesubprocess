@@ -1,6 +1,9 @@
+import logging
 import subprocess
 import shlex
 import signal
+
+logger = logging.getLogger(__name__)
 
 class PipeSubprocessError(subprocess.SubprocessError):
     '''
@@ -13,7 +16,7 @@ class PipeSubprocessError(subprocess.SubprocessError):
 
     @property
     def output(self):
-        return sefl.stdout
+        return self.stdout
 
 
 class TimeoutExpired(PipeSubprocessError):
@@ -24,7 +27,7 @@ class TimeoutExpired(PipeSubprocessError):
         super().__init__(popen_args, stdout=stdout, stderr=stderr)
         self.timeout = timeout
 
-    def __str__(self):
+    def __repr__(self):
         cmds_string = [pa.name for pa in self.popen_args].join(' | ')
         return f'Commands: "{cmds_string}" timed out after {self.timeout} seconds.'
 

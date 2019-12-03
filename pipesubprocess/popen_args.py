@@ -53,7 +53,7 @@ class PopenArgs:
             return ' '.join(self.args)
 
     def __repr__(self):
-        return f"<PipeArgs name={self.name} stderr={self.stderr}, popen_kwargs={self.popen_kwargs}>"
+        return f"<PipeArgs args='{' '.join(self.args)}'>"
 
     def __str__(self):
         from pprint import pformat

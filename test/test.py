@@ -186,6 +186,7 @@ class PipesubprocessTest(unittest.TestCase):
         try:
             self.p.wait(timeout=0.1)
         except pipesub.TimeoutExpired as e:
+            logging.exception('text of pipesub timeout expired')
             self.assertEqual(e.popen_args[0].name, 'sleep')
             self.assertEqual(e.popen_args[1].name, 'sleep')
             self.assertEqual(e.popen_args[2].name, 'sleep')
