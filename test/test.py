@@ -15,6 +15,7 @@ class PipesubprocessTest(unittest.TestCase):
         logging.info("")
         logging.info("**************start**************")
         logging.info("")
+        self.p = None
 
     def tearDown(self):
         if self.p:
@@ -35,6 +36,7 @@ class PipesubprocessTest(unittest.TestCase):
         if outs_line[-1] == '':
             del outs_line[-1]
         self.assertEqual(outs_line, expected_out)
+        self.assertEqual(len(self.p.pids), len(popen_args_list))
 
     def test_001_single(self):
         '''
@@ -131,6 +133,7 @@ class PipesubprocessTest(unittest.TestCase):
         self.p = pipesub.Popen(popen_args_list, text=True, stdout=pipesub.PIPE, stdin=pipesub.PIPE)
         with self.assertRaises(pipesub.TimeoutExpired):
             self.p.wait(timeout=0.1)
+        self.p.kill()
 
     def test_011_stderr_single(self):
         logging.info(inspect.stack()[0][3])
@@ -157,7 +160,7 @@ class PipesubprocessTest(unittest.TestCase):
         self.assertEqual(outs, "")
         self.assertEqual(errs.split("\n"), expected_out)
 
-    def test_013_kill(self):
+    def test_013_kill_and_returncodes(self):
         logging.info(inspect.stack()[0][3])
         cmdlist = ["sleep 10", "sleep 10", "sleep 10"]
         popen_args_list = self.get_popen_args_list(cmdlist)
@@ -194,3 +197,83 @@ class PipesubprocessTest(unittest.TestCase):
         except:
             raise
 
+    def test_016_kill_one(self):
+        logging.info(inspect.stack()[0][3])
+        cmdlist = ["sleep 500", "tail", "tail"]
+        popen_args_list = self.get_popen_args_list(cmdlist)
+        self.p = pipesub.Popen(popen_args_list)
+        self.p.kill([0])
+        self.assertIsNotNone(self.p.wait(timeout=1))
+        self.assertEqual(self.p.returncodes, [-9, 0, 0])
+
+    def test_017_terminate(self):
+        logging.info(inspect.stack()[0][3])
+        cmdlist = ["sleep 10", "sleep 10", "sleep 10"]
+        popen_args_list = self.get_popen_args_list(cmdlist)
+        self.p = pipesub.Popen(popen_args_list)
+        self.p.terminate()
+        self.assertIsNotNone(self.p.wait(timeout=1))
+        self.assertEqual(self.p.returncodes, [-15, -15, -15])
+
+    def test_018_terminate_one(self):
+        logging.info(inspect.stack()[0][3])
+        cmdlist = ["sleep 500", "tail", "tail"]
+        popen_args_list = self.get_popen_args_list(cmdlist)
+        self.p = pipesub.Popen(popen_args_list)
+        self.p.terminate([0])
+        self.assertIsNotNone(self.p.wait(timeout=1))
+        self.assertEqual(self.p.returncodes, [-15, 0, 0])
+
+    def test_019_send_signal(self):
+        logging.info(inspect.stack()[0][3])
+        cmdlist = ["sleep 500", "tail", "tail"]
+        popen_args_list = self.get_popen_args_list(cmdlist)
+        self.p = pipesub.Popen(popen_args_list)
+        import signal
+        self.p.send_signal(signal.SIGALRM)
+        self.assertIsNotNone(self.p.wait(timeout=1))
+        self.assertEqual(self.p.returncodes, [-14, -14, -14])
+
+    def test_020_send_signal_one(self):
+        logging.info(inspect.stack()[0][3])
+        cmdlist = ["sleep 500", "tail", "tail"]
+        popen_args_list = self.get_popen_args_list(cmdlist)
+        self.p = pipesub.Popen(popen_args_list)
+        import signal
+        self.p.send_signal(signal.SIGALRM, [0])
+        self.assertIsNotNone(self.p.wait(timeout=1))
+        self.assertEqual(self.p.returncodes, [-14, 0, 0])
+
+    def test_021_run_single(self):
+        logging.info(inspect.stack()[0][3])
+
+        cmdlist = ["echo hoge"]
+        result = pipesub.run(cmdlist, capture_output=True)
+        
+        logging.info(inspect.stack()[0][3])
+        self.assertEqual(result.stdout, "hoge\n")
+        self.assertEqual(result.stderr, "")
+        self.assertEqual(result.returncodes, [0])
+        logging.error(result)
+
+    def test_022_run_multi(self):
+        logging.info(inspect.stack()[0][3])
+
+        cmdlist = ["echo hoge", "tail", "tail"]
+        result = pipesub.run(cmdlist, capture_output=True)
+
+        logging.info(inspect.stack()[0][3])
+        self.assertEqual(result.stdout, "hoge\n")
+        self.assertEqual(result.stderr, "")
+        self.assertEqual(result.returncodes, [0, 0, 0])
+        logging.error(result)
+
+    def test_023_run_error(self):
+        logging.info(inspect.stack()[0][3])
+
+        cmdlist = ["echo hoge", "ls hogehogehoge", "tail"]
+        try:
+            result = pipesub.run(cmdlist, capture_output=True, check=True)
+        except pipesub.CalledProcessError as e:
+            logging.exception(e)
+            self.assertEqual(e.returncodes, [0, 1, 0])

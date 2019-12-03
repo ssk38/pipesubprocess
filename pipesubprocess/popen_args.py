@@ -6,7 +6,7 @@ class PopenArgs:
     '''
     The possible arguments are Popen arguments except for
     stdin/stdout and name. name is set to popen object.
-    This parameter is used to call pipechildren.Popen.
+    This parameter is used to call pipesubcommand.Popen.
     stdin and stdout are ignored when piped to another process.
     '''
     def __init__(self, args, bufsize=-1, executable=None, stderr=None, preexec_fn=None, close_fds=True, shell=False, cwd=None, env=None, startupinfo=None, creationflags=0, restore_signals=True, start_new_session=False, pass_fds=(), name=None):

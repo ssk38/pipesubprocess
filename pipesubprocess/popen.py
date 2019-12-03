@@ -496,8 +496,8 @@ class Popen:
     def send_signal(self, signal, *args):
         if args and isinstance(args[0], list):
             for i in args[0]:
-                self.processes[i].terminate()
+                self.processes[i].send_signal(signal)
         else:
             for p in self.processes:
-                p.terminate()
+                p.send_signal(signal)
 
