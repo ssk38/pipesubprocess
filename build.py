@@ -30,7 +30,7 @@ def testrelease():
     run("python3 -m twine upload --repository-url https://test.pypi.org/legacy/ dist/*", shell=True)
 
 @task()
-def testrelease():
+def release():
     '''Release to pypip.org.'''
     print('Releasing')
     run("python3 -m twine upload dist/*", shell=True)
