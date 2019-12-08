@@ -3,3 +3,7 @@
 #*
 .#*
 __pycache__
+venv
+build
+dist
+pipe_subprocess.egg-info
