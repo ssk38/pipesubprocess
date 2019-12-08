@@ -31,7 +31,7 @@ def _get_args_list(cmdlist, shlex=True):
     return args_list
 
 
-def run(*cmdlist, shlex=True, stdin=None, input=None, stdout=None, stderr=None, capture_output=False, shell=False, cwd=None, timeout=None, check=False, encoding=None, errors=None, text=True, env=None, universal_newlines=None):
+def run(*cmdlist, shlex=True, stdin=None, input=None, stdout=None, stderr=None, capture_output=True, shell=False, cwd=None, timeout=None, check=False, encoding=None, errors=None, text=True, env=None, universal_newlines=None):
     '''
     args_list: List of string/list.
     '''
@@ -80,3 +80,18 @@ class CompletedProcess:
         if need_raise:
             raise CalledProcessError(self.popen_args_list, self.returncodes, stdout=self.stdout, stderr=self.stderr)
 
+
+    def __repr__(self):
+        cmdlist = [pa.name for pa in self.popen_args_list]
+
+        if self.stdout:
+            stdout_repr = "%d lines" % self.stdout.count("\n")
+        else:
+            stdout_repr = "None"
+
+        if self.stderr:
+            stderr_repr = "%d lines" % self.stderr.count("\n")
+        else:
+            stderr_repr = "None"
+
+        return f"CompletedProcess(cmdlist={cmdlist}, returncodes={self.returncodes}, stdout={stdout_repr}, stderr={stderr_repr})"
