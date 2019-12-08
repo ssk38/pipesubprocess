@@ -1,0 +1,2 @@
+pynt==0.8.2
+setuptools-scm==3.3.3
