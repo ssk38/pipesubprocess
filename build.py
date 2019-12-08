@@ -27,11 +27,11 @@ def build(target='.'):
 def testrelease():
     '''Release to test.pypip.org.'''
     print('Releasing')
-    run("python3 -m twine upload --repository-url https://test.pypi.org/legacy/ dist/*", shel=True)
+    run("python3 -m twine upload --repository-url https://test.pypi.org/legacy/ dist/*", shell=True)
 
 @task()
 def testrelease():
     '''Release to pypip.org.'''
     print('Releasing')
-    run("python3 -m twine upload dist/*", shel=True)
+    run("python3 -m twine upload dist/*", shell=True)
 
