@@ -2,6 +2,11 @@
 ' Connects input/ouput streams between multiple subprocesses easily just like shell pipe.
 ' Provides almost the same interface as python subprocess module with some exceptions.
 
+## Install
+```shell
+pip3 install pipe-subprocess
+```
+
 ## Quick how to
 Just pass commands to run function.
 
