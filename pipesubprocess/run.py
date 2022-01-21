@@ -72,6 +72,7 @@ class CompletedProcess:
         self.stderr = stderr
 
     def check_returncodes(self):
+        need_raise = False
         if self.returncodes is None:
             need_raise = True
         elif any(self.returncodes):
